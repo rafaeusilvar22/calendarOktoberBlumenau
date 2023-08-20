@@ -6,7 +6,9 @@
     <div class="q-ma-sm q-gutter-sm row justify-center">
       <q-select
         v-model="selectedView"
+        view="day"
         label="Modo de Visualização"
+        no-active-date
         outlined
         dense
         options-dense
@@ -19,7 +21,7 @@
 
     <div class="row justify-center">
       <div style="display: flex; max-width: 800px; width: 100%; height: 400px">
-        <QCalendarDay
+        <q-calendar-day
           use-navigation
           hoverable
           focusable
@@ -29,10 +31,10 @@
           view="week"
           :weekdays="[1, 2, 3, 4, 5, 6, 7, 0]"
           :hour24-format="hour24"
-          :day-min-height="200"
           :interval-start="16"
           :interval-minutes="30"
           :interval-count="50"
+          :interval-height="40"
           :disabled-after="disabledAfter"
           :disabled-before="disabledBefore"
           bordered
@@ -44,65 +46,97 @@
           transition-prev="slide-right"
           transition-next="slide-left"
         >
-          <template #day-body="{ scope: { timestamp } }">
-            <template
-              v-for="event in eventsMap[timestamp.date]"
-              :key="event.id"
+          <template #head-day-event="{ scope: { timestamp } }">
+            <div
+              style="
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+                padding: 2px;
+              "
             >
-              <div
-                :label="event.title"
-                class="justify-start q-ma-sm shadow-5 bg-grey-6"
-                style="margin-top: 25px"
+              <template
+                v-for="event in eventsMap[timestamp.date]"
+                :key="event.id"
               >
-                <!-- <div
-                  v-if="a.avatar"
-                  class="row justify-center"
-                  style="margin-top: 30px; width: 100%"
+                <q-badge
+                  v-if="!event.time"
+                  :class="badgeClasses(event, 'header')"
+                  :style="badgeStyles(event, 'header')"
+                  style="
+                    width: 100%;
+                    cursor: pointer;
+                    height: 12px;
+                    font-size: 10px;
+                    margin: 1px;
+                  "
                 >
-                  <q-avatar
-                    style="
-                      margin-top: -50px;
-                      margin-bottom: 10px;
-                      font-size: 60px;
-                    "
-                  >
-                    <img :src="a.avatar" style="border: #9e9e9e solid 5px" />
-                  </q-avatar>
-                </div> -->
-                <!-- <div class="col-12 q-px-sm">
-                  <strong>{{ a.time }}</strong>
-                </div> -->
-                <div
-                  v-if="event.title"
-                  class="col-12 q-px-sm"
-                  style="font-size: 10px"
+                  <div class="title q-calendar__ellipsis">
+                    {{ event.title }}
+                    <q-tooltip>{{ event.details }}</q-tooltip>
+                  </div>
+                </q-badge>
+                <q-badge
+                  v-else
+                  :class="badgeClasses(event, 'header')"
+                  :style="badgeStyles(event, 'header')"
+                  style="
+                    margin: 1px;
+                    width: 10px;
+                    max-width: 10px;
+                    height: 10px;
+                    max-height: 10px;
+                    cursor: pointer;
+                  "
+                  @click="scrollToEvent(event)"
                 >
+                  <q-tooltip>{{
+                    event.time + " - " + event.details
+                  }}</q-tooltip>
+                </q-badge>
+              </template>
+            </div>
+          </template>
+
+          <template #day-body="{ scope: { timestamp } }">
+            <template v-for="event in getEvents[timestamp.date]" :key="event">
+              <div
+                v-if="event.time !== undefined"
+                class="my-event"
+                :class="badgeClasses(event, 'body')"
+                :style="
+                  badgeStyles(event, 'body', timeStartPos, timeDurationHeight)
+                "
+              >
+                <div class="title q-calendar__ellipsis">
                   {{ event.title }}
+                  <q-tooltip>{{
+                    event.time + " - " + event.details
+                  }}</q-tooltip>
                 </div>
               </div>
             </template>
           </template>
-        </QCalendarDay>
+        </q-calendar-day>
       </div>
     </div>
   </div>
 </template>
 <style src="@quasar/quasar-ui-qcalendar/dist/QCalendarDay.min.css"></style>
 <script>
-import { defineComponent, ref, computed, reactive, onBeforeMount } from "vue";
+import { defineComponent, ref, computed } from "vue";
 import "@quasar/quasar-ui-qcalendar/dist/QCalendarTransitions.css";
 import {
   QCalendarDay,
-  today,
   addToDate,
   parseTimestamp,
   isBetweenDates,
   parsed,
+  parseTime,
 } from "@quasar/quasar-ui-qcalendar/src/index.js";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarVariables.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarTransitions.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendar.sass";
-import { event } from "quasar";
 
 export default defineComponent({
   name: "CalendarAll",
@@ -117,7 +151,6 @@ export default defineComponent({
       selectedView = ref("week"),
       calendar = ref(null),
       selectedDate = ref("2023-10-04"), // seleted day
-      startDate = ref("2023-10-04"),
       events = [
         {
           id: 1,
@@ -125,7 +158,7 @@ export default defineComponent({
           details: "Time to pitch my idea to the company",
           date: "2023-10-04",
           time: "09:00",
-          duration: 120,
+          duration: 60,
           bgcolor: "red",
           icon: "fas fa-handshake",
         },
@@ -145,7 +178,7 @@ export default defineComponent({
           details: "Teaching Javascript 101",
           date: "2023-10-06",
           time: "13:00",
-          duration: 240,
+          duration: 60,
           bgcolor: "blue",
           icon: "fas fa-chalkboard-teacher",
         },
@@ -155,7 +188,7 @@ export default defineComponent({
           details: "Meet GF for dinner at Swanky Restaurant",
           date: "2023-10-07",
           time: "19:00",
-          duration: 180,
+          duration: 60,
           bgcolor: "teal-2",
           icon: "fas fa-utensils",
         },
@@ -175,6 +208,7 @@ export default defineComponent({
       return ts.date;
     });
 
+    // convert the events into a map of lists keyed by date
     const eventsMap = computed(() => {
       const map = {};
       events.forEach((event) => {
@@ -196,6 +230,68 @@ export default defineComponent({
       });
       return map;
     });
+
+    const getEvents = computed((dt) => {
+      const events = eventsMap.value || [];
+
+      if (events.length === 1) {
+        events[0].side = "full";
+      } else if (events.length === 2) {
+        // this example does no more than 2 events per day
+        // check if the two events overlap and if so, select
+        // left or right side alignment to prevent overlap
+        const startTime = addToDate(parsed(events[0].date), {
+          minute: parseTime(events[0].time),
+        });
+        const endTime = addToDate(startTime, { minute: events[0].duration });
+        const startTime2 = addToDate(parsed(events[1].date), {
+          minute: parseTime(events[1].time),
+        });
+        const endTime2 = addToDate(startTime2, { minute: events[1].duration });
+        if (
+          isBetweenDates(startTime2, startTime, endTime, true) ||
+          isBetweenDates(endTime2, startTime, endTime, true)
+        ) {
+          events[0].side = "left";
+          events[1].side = "right";
+        } else {
+          events[0].side = "full";
+          events[1].side = "full";
+        }
+      }
+
+      console.log(events);
+      return events;
+    });
+
+    const badgeClasses = (event, type) => {
+      const isHeader = type.value === "header";
+      return {
+        [`text-white bg-${event.bgcolor}`]: true,
+        "full-width": !isHeader && (!event.side || event.side === "full"),
+        "left-side": !isHeader && event.side === "left",
+        "right-side": !isHeader && event.side === "right",
+        "rounded-border": true,
+      };
+    };
+
+    const timeStartPos = undefined;
+    const timeDurationHeight = undefined;
+
+    const badgeStyles = (event) => {
+      const s = {};
+      if (timeStartPos && timeDurationHeight) {
+        s.top = timeStartPos = event.time + "px";
+        s.height = timeDurationHeight = event.duration + "px";
+      }
+      s["align-items"] = "flex-start";
+      return s;
+    };
+
+    const scrollToEvent = (event) => {
+      calendar.value.scrollToTime(event.time, 350);
+    };
+
     const onClickTime = () => {
       console.log("onClickTime");
     };
@@ -246,12 +342,81 @@ export default defineComponent({
       disabledAfter,
       disabledBefore,
       eventsMap,
+      timeDurationHeight,
+      timeStartPos,
       handleSwipe,
       onClickTime,
       onToday,
       onPrev,
       onNext,
+      badgeClasses,
+      badgeStyles,
+      getEvents,
+      scrollToEvent,
     };
   },
 });
 </script>
+<style scoped>
+.my-event {
+  position: absolute;
+  font-size: 12px;
+  justify-content: center;
+  margin: 0 1px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  cursor: pointer;
+}
+.title {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+.text-white {
+  color: white;
+}
+
+.bg-blue {
+  background: blue;
+}
+
+.bg-green {
+  background: green;
+}
+
+.bg-orange {
+  background: orange;
+}
+
+.bg-red {
+  background: red;
+}
+.bg-teal {
+  background: teal;
+}
+
+.bg-grey {
+  background: grey;
+}
+
+.bg-purple {
+  background: purple;
+}
+.full-width {
+  left: 0;
+  width: calc(100% - 2px);
+}
+.left-side {
+  left: 0;
+  width: calc(50% - 3px);
+}
+.right-side {
+  left: 50%;
+  width: calc(50% - 3px);
+}
+.rounded-border {
+  border-radius: 2px;
+}
+</style>
