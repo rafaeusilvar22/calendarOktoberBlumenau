@@ -44,17 +44,17 @@
           transition-prev="slide-right"
           transition-next="slide-left"
         >
-          <template #week="{ scope: { timestamp } }">
+          <template #day-body="{ scope: { timestamp } }">
             <template
-              v-for="a in getAgenda(timestamp)"
-              :key="timestamp.date + a.time"
+              v-for="event in eventsMap[timestamp.date]"
+              :key="event.id"
             >
               <div
-                :label="a.time"
+                :label="event.title"
                 class="justify-start q-ma-sm shadow-5 bg-grey-6"
                 style="margin-top: 25px"
               >
-                <div
+                <!-- <div
                   v-if="a.avatar"
                   class="row justify-center"
                   style="margin-top: 30px; width: 100%"
@@ -68,16 +68,16 @@
                   >
                     <img :src="a.avatar" style="border: #9e9e9e solid 5px" />
                   </q-avatar>
-                </div>
-                <div class="col-12 q-px-sm">
+                </div> -->
+                <!-- <div class="col-12 q-px-sm">
                   <strong>{{ a.time }}</strong>
-                </div>
+                </div> -->
                 <div
-                  v-if="a.desc"
+                  v-if="event.title"
                   class="col-12 q-px-sm"
                   style="font-size: 10px"
                 >
-                  {{ a.desc }}
+                  {{ event.title }}
                 </div>
               </div>
             </template>
@@ -102,6 +102,7 @@ import {
 import "@quasar/quasar-ui-qcalendar/src/QCalendarVariables.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarTransitions.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendar.sass";
+import { event } from "quasar";
 
 export default defineComponent({
   name: "CalendarAll",
@@ -117,123 +118,48 @@ export default defineComponent({
       calendar = ref(null),
       selectedDate = ref("2023-10-04"), // seleted day
       startDate = ref("2023-10-04"),
-      agenda = {
-        // value represents day of the week
-        3: [
-          {
-            time: "18:00",
-            avatar:
-              "https://as1.ftcdn.net/v2/jpg/02/22/79/96/1000_F_222799673_m5MWq5Z9MdKYrJrt5OH3MFhCW7hTT2S6.jpg",
-            desc: "Abertura – Som mecânico",
-          },
-          {
-            time: "08:30",
-            avatar: "https://cdn.quasar.dev/img/avatar.png",
-            desc: "Meeting with HR",
-          },
-          {
-            time: "10:00",
-            avatar: "https://cdn.quasar.dev/img/avatar1.jpg",
-            desc: "Meeting with Karen",
-          },
-        ],
-        4: [
-          {
-            time: "11:30",
-            avatar: "https://cdn.quasar.dev/img/avatar2.jpg",
-            desc: "Meeting with Alisha",
-          },
-          {
-            time: "17:00",
-            avatar: "https://cdn.quasar.dev/img/avatar3.jpg",
-            desc: "Meeting with Sarah",
-          },
-        ],
-        5: [
-          {
-            time: "08:00",
-            desc: "Stand-up SCRUM",
-            avatar: "https://cdn.quasar.dev/img/material.png",
-          },
-          {
-            time: "09:00",
-            avatar: "https://cdn.quasar.dev/img/boy-avatar.png",
-          },
-          {
-            time: "10:00",
-            desc: "Sprint planning",
-            avatar: "https://cdn.quasar.dev/img/material.png",
-          },
-          {
-            time: "13:00",
-            avatar: "https://cdn.quasar.dev/img/avatar1.jpg",
-          },
-        ],
-        6: [
-          {
-            time: "09:00",
-            avatar: "https://cdn.quasar.dev/img/avatar3.jpg",
-          },
-          {
-            time: "10:00",
-            avatar: "https://cdn.quasar.dev/img/avatar2.jpg",
-          },
-          {
-            time: "13:00",
-            avatar: "https://cdn.quasar.dev/img/material.png",
-          },
-        ],
-        7: [
-          {
-            time: "08:00",
-            avatar: "https://cdn.quasar.dev/img/boy-avatar.png",
-          },
-          {
-            time: "09:00",
-            avatar: "https://cdn.quasar.dev/img/avatar2.jpg",
-          },
-          {
-            time: "09:30",
-            avatar: "https://cdn.quasar.dev/img/avatar4.jpg",
-          },
-          {
-            time: "10:00",
-            avatar: "https://cdn.quasar.dev/img/avatar5.jpg",
-          },
-          {
-            time: "11:30",
-            avatar: "https://cdn.quasar.dev/img/material.png",
-          },
-          {
-            time: "13:00",
-            avatar: "https://cdn.quasar.dev/img/avatar6.jpg",
-          },
-          {
-            time: "13:30",
-            avatar: "https://cdn.quasar.dev/img/avatar3.jpg",
-          },
-          {
-            time: "14:00",
-            avatar: "https://cdn.quasar.dev/img/linux-avatar.png",
-          },
-          {
-            time: "14:30",
-            avatar: "https://cdn.quasar.dev/img/avatar.png",
-          },
-          {
-            time: "15:00",
-            avatar: "https://cdn.quasar.dev/img/boy-avatar.png",
-          },
-          {
-            time: "15:30",
-            avatar: "https://cdn.quasar.dev/img/avatar2.jpg",
-          },
-          {
-            time: "16:00",
-            avatar: "https://cdn.quasar.dev/img/avatar6.jpg",
-          },
-        ],
-      };
+      events = [
+        {
+          id: 1,
+          title: "Abertura – Som mecânico",
+          details: "Time to pitch my idea to the company",
+          date: "2023-10-04",
+          time: "09:00",
+          duration: 120,
+          bgcolor: "red",
+          icon: "fas fa-handshake",
+        },
+        {
+          id: 2,
+          title: "Banda Os Fritz",
+          details: "Company is paying!",
+          date: "2023-10-05",
+          time: "12:00",
+          duration: 60,
+          bgcolor: "teal",
+          icon: "fas fa-hamburger",
+        },
+        {
+          id: 3,
+          title: "Abertura – Som mecânico",
+          details: "Teaching Javascript 101",
+          date: "2023-10-06",
+          time: "13:00",
+          duration: 240,
+          bgcolor: "blue",
+          icon: "fas fa-chalkboard-teacher",
+        },
+        {
+          id: 4,
+          title: "Abertura – Som mecânico",
+          details: "Meet GF for dinner at Swanky Restaurant",
+          date: "2023-10-07",
+          time: "19:00",
+          duration: 180,
+          bgcolor: "teal-2",
+          icon: "fas fa-utensils",
+        },
+      ];
 
     // doc about computed vue 3
     // https://vuejs.org/guide/essentials/computed.html#basic-example
@@ -249,6 +175,27 @@ export default defineComponent({
       return ts.date;
     });
 
+    const eventsMap = computed(() => {
+      const map = {};
+      events.forEach((event) => {
+        if (!map[event.data]) {
+          map[event.date] = [];
+        }
+        map[event.date].push(event);
+        if (event.days) {
+          let timestamp = parseTimestamp(event.date);
+          let days = event.days;
+          do {
+            timestamp = addToDate(timestamp, { day: 1 });
+            if (!map[timestamp.date]) {
+              map[timestamp.date] = [];
+            }
+            map[timestamp.date].push(event);
+          } while (--days > 0);
+        }
+      });
+      return map;
+    });
     const onClickTime = () => {
       console.log("onClickTime");
     };
@@ -293,16 +240,17 @@ export default defineComponent({
       selectedView,
       calendar,
       hour24,
+      events,
       dragging,
       ignoreNextSwipe,
       disabledAfter,
       disabledBefore,
+      eventsMap,
       handleSwipe,
       onClickTime,
       onToday,
       onPrev,
       onNext,
-      agenda,
     };
   },
 });
