@@ -111,7 +111,7 @@ export default defineComponent({
   setup() {
     const hour24 = true;
     const dragging = false;
-    const ignoreNextSwipe = false;
+    let ignoreNextSwipe = false;
     const selectedCalendar = ref("agenda"),
       selectedView = ref("week"),
       calendar = ref(null),
