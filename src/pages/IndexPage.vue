@@ -22,12 +22,11 @@
     <div class="row justify-center">
       <div style="display: flex; max-width: 800px; width: 100%; height: 400px">
         <q-calendar-day
-          use-navigation
-          hoverable
-          focusable
-          :focus-type="['interval', 'weekday']"
           ref="calendar"
           v-model="selectedDate"
+          use-navigation
+          no-active-date
+          bordered
           view="week"
           :weekdays="[1, 2, 3, 4, 5, 6, 7, 0]"
           :hour24-format="hour24"
@@ -37,7 +36,6 @@
           :interval-height="40"
           :disabled-after="disabledAfter"
           :disabled-before="disabledBefore"
-          bordered
           short-weekday-label
           animated
           locale="pt-BR"
@@ -98,8 +96,15 @@
             </div>
           </template>
 
-          <template #day-body="{ scope: { timestamp } }">
-            <template v-for="event in getEvents[timestamp.date]" :key="event">
+          <template
+            #day-body="{
+              scope: { timestamp, timeStartPos, timeDurationHeight },
+            }"
+          >
+            <template
+              v-for="event in getEvents(timestamp.date)"
+              :key="event.id"
+            >
               <div
                 v-if="event.time !== undefined"
                 class="my-event"
@@ -108,12 +113,11 @@
                   badgeStyles(event, 'body', timeStartPos, timeDurationHeight)
                 "
               >
-                <div class="title q-calendar__ellipsis">
-                  {{ event.title }}
-                  <q-tooltip>{{
-                    event.time + " - " + event.details
-                  }}</q-tooltip>
-                </div>
+                <span class="title q-calendar__ellipsis">
+                  {{ event.time }}
+
+                  <q-tooltip>{{ event.details }}</q-tooltip>
+                </span>
               </div>
             </template>
           </template>
@@ -124,7 +128,7 @@
 </template>
 <style src="@quasar/quasar-ui-qcalendar/dist/QCalendarDay.min.css"></style>
 <script>
-import { defineComponent, ref, computed } from "vue";
+import { defineComponent, ref, computed, onMounted } from "vue";
 import "@quasar/quasar-ui-qcalendar/dist/QCalendarTransitions.css";
 import {
   QCalendarDay,
@@ -151,7 +155,7 @@ export default defineComponent({
       selectedView = ref("week"),
       calendar = ref(null),
       selectedDate = ref("2023-10-04"), // seleted day
-      events = [
+      events = ref([
         {
           id: 1,
           title: "Abertura – Som mecânico",
@@ -166,7 +170,7 @@ export default defineComponent({
           id: 2,
           title: "Banda Os Fritz",
           details: "Company is paying!",
-          date: "2023-10-05",
+          date: "2023-10-04",
           time: "12:00",
           duration: 60,
           bgcolor: "teal",
@@ -176,7 +180,7 @@ export default defineComponent({
           id: 3,
           title: "Abertura – Som mecânico",
           details: "Teaching Javascript 101",
-          date: "2023-10-06",
+          date: "2023-10-05",
           time: "13:00",
           duration: 60,
           bgcolor: "blue",
@@ -192,7 +196,7 @@ export default defineComponent({
           bgcolor: "teal-2",
           icon: "fas fa-utensils",
         },
-      ];
+      ]);
 
     // doc about computed vue 3
     // https://vuejs.org/guide/essentials/computed.html#basic-example
@@ -211,8 +215,9 @@ export default defineComponent({
     // convert the events into a map of lists keyed by date
     const eventsMap = computed(() => {
       const map = {};
-      events.forEach((event) => {
-        if (!map[event.data]) {
+      // this.events.forEach(event => (map[ event.date ] = map[ event.date ] || []).push(event))
+      events.value.map((event) => {
+        if (!map[event.date]) {
           map[event.date] = [];
         }
         map[event.date].push(event);
@@ -231,8 +236,34 @@ export default defineComponent({
       return map;
     });
 
-    const getEvents = computed((dt) => {
-      const events = eventsMap.value || [];
+    const badgeClasses = (event, type) => {
+      const isHeader = type.value === "header";
+      return {
+        [`text-white bg-${event.bgcolor}`]: true,
+        "full-width": !isHeader && (!event.side || event.side === "full"),
+        "left-side": !isHeader && event.side === "left",
+        "right-side": !isHeader && event.side === "right",
+        "rounded-border": true,
+      };
+    };
+
+    const badgeStyles = (
+      event,
+      type,
+      timeStartPos = undefined,
+      timeDurationHeight = undefined
+    ) => {
+      const s = {};
+      if (timeStartPos && timeDurationHeight) {
+        s.top = timeStartPos(event.time) + "px";
+        s.height = timeDurationHeight(event.duration) + "px";
+      }
+      s["align-items"] = "flex-start";
+      return s;
+    };
+
+    const getEvents = (dt) => {
+      const events = eventsMap.value[dt] || [];
 
       if (events.length === 1) {
         events[0].side = "full";
@@ -243,6 +274,7 @@ export default defineComponent({
         const startTime = addToDate(parsed(events[0].date), {
           minute: parseTime(events[0].time),
         });
+
         const endTime = addToDate(startTime, { minute: events[0].duration });
         const startTime2 = addToDate(parsed(events[1].date), {
           minute: parseTime(events[1].time),
@@ -259,33 +291,7 @@ export default defineComponent({
           events[1].side = "full";
         }
       }
-
-      console.log(events);
       return events;
-    });
-
-    const badgeClasses = (event, type) => {
-      const isHeader = type.value === "header";
-      return {
-        [`text-white bg-${event.bgcolor}`]: true,
-        "full-width": !isHeader && (!event.side || event.side === "full"),
-        "left-side": !isHeader && event.side === "left",
-        "right-side": !isHeader && event.side === "right",
-        "rounded-border": true,
-      };
-    };
-
-    const timeStartPos = undefined;
-    const timeDurationHeight = undefined;
-
-    const badgeStyles = (event) => {
-      const s = {};
-      if (timeStartPos && timeDurationHeight) {
-        s.top = timeStartPos = event.time + "px";
-        s.height = timeDurationHeight = event.duration + "px";
-      }
-      s["align-items"] = "flex-start";
-      return s;
     };
 
     const scrollToEvent = (event) => {
@@ -342,8 +348,8 @@ export default defineComponent({
       disabledAfter,
       disabledBefore,
       eventsMap,
-      timeDurationHeight,
-      timeStartPos,
+      // timeDurationHeight,
+      // timeStartPos,
       handleSwipe,
       onClickTime,
       onToday,

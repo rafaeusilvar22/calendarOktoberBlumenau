@@ -1,22 +1,24 @@
 <template>
   <div class="subcontent">
-    <navigation-bar @today="onToday" @prev="onPrev" @next="onNext" />
-
     <div class="row justify-center">
       <div style="display: flex; max-width: 800px; width: 100%; height: 400px">
         <q-calendar-day
           ref="calendar"
           v-model="selectedDate"
-          view="day"
+          view="week"
           animated
           bordered
+          :weekdays="[1, 2, 3, 4, 5, 6, 7, 0]"
           transition-next="slide-left"
           transition-prev="slide-right"
+          locale="pt-BR"
           no-active-date
-          :interval-minutes="15"
-          :interval-start="24"
-          :interval-count="68"
+          :interval-start="7"
+          :interval-count="18"
           :interval-height="28"
+          :disabled-after="disabledAfter"
+          :disabled-before="disabledBefore"
+          v-touch-swipe.mouse.left.right="handleSwipe"
           @change="onChange"
           @moved="onMoved"
           @click-date="onClickDate"
@@ -34,10 +36,7 @@
                 padding: 2px;
               "
             >
-              <template
-                v-for="event in eventsMap[timestamp.date]"
-                :key="event.id"
-              >
+              <template v-for="event in [timestamp.date]" :key="event.id">
                 <q-badge
                   v-if="!event.time"
                   :class="badgeClasses(event, 'header')"
@@ -50,10 +49,10 @@
                     margin: 1px;
                   "
                 >
-                  <div class="title q-calendar__ellipsis">
+                  <span class="title q-calendar__ellipsis">
                     {{ event.title }}
                     <q-tooltip>{{ event.details }}</q-tooltip>
-                  </div>
+                  </span>
                 </q-badge>
                 <q-badge
                   v-else
@@ -65,7 +64,6 @@
                     max-width: 10px;
                     height: 10px;
                     max-height: 10px;
-                    cursor: pointer;
                   "
                   @click="scrollToEvent(event)"
                 >
@@ -94,12 +92,10 @@
                   badgeStyles(event, 'body', timeStartPos, timeDurationHeight)
                 "
               >
-                <div class="title q-calendar__ellipsis">
+                <span class="title q-calendar__ellipsis">
                   {{ event.title }}
-                  <q-tooltip>{{
-                    event.time + " - " + event.details
-                  }}</q-tooltip>
-                </div>
+                  <q-tooltip>{{ event.details }}</q-tooltip>
+                </span>
               </div>
             </template>
           </template>
@@ -117,40 +113,58 @@ import {
   isBetweenDates,
   today,
   parsed,
+  parseDate,
   parseTime,
-} from "@quasar/quasar-ui-qcalendar/src/index.js";
+} from "@quasar/quasar-ui-qcalendar/src/QCalendarDay.js";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarVariables.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarTransitions.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarDay.sass";
 
 import { defineComponent } from "vue";
-import NavigationBar from "../components/NavigationBar.vue";
+
+// The function below is used to set up our demo data
+const CURRENT_DAY = new Date();
+function getCurrentDay(day) {
+  const newDay = new Date(CURRENT_DAY);
+  newDay.setDate(day);
+  const tm = parseDate(newDay);
+  return tm.date;
+}
 
 export default defineComponent({
   name: "WeekSlotDayBody",
   components: {
-    NavigationBar,
     QCalendarDay,
   },
   data() {
     return {
-      selectedDate: today(),
+      selectedDate: "2023-10-04",
       events: [
         {
           id: 1,
-          title: "Meeting",
+          title: "Abertura – Som mecânico",
           details: "Time to pitch my idea to the company",
-          date: today(),
+          date: "2023-10-04",
           time: "09:00",
-          duration: 120,
+          duration: 60,
+          bgcolor: "red",
+          icon: "fas fa-handshake",
+        },
+        {
+          id: 1,
+          title: "Abertura – Som mecânico",
+          details: "Time to pitch my idea to the company",
+          date: "2023-10-04",
+          time: "10:00",
+          duration: 60,
           bgcolor: "red",
           icon: "fas fa-handshake",
         },
         {
           id: 2,
-          title: "Lunch",
+          title: "Banda Os Fritz",
           details: "Company is paying!",
-          date: today(),
+          date: "2023-10-05",
           time: "12:00",
           duration: 60,
           bgcolor: "teal",
@@ -158,25 +172,27 @@ export default defineComponent({
         },
         {
           id: 3,
-          title: "Conference",
-          details: "Teaching Javascript 101",
-          date: today(),
+          title: "Abertura – Som mecânico",
+          details: "Teaching Javascript 081",
+          date: "2023-10-06",
           time: "13:00",
-          duration: 240,
+          duration: 60,
           bgcolor: "blue",
           icon: "fas fa-chalkboard-teacher",
         },
         {
           id: 4,
-          title: "Girlfriend",
+          title: "Abertura – Som mecânico",
           details: "Meet GF for dinner at Swanky Restaurant",
-          date: today(),
+          date: "2023-10-07",
           time: "19:00",
-          duration: 180,
+          duration: 60,
           bgcolor: "teal-2",
           icon: "fas fa-utensils",
         },
       ],
+      dragging: false, // used for drag-and-drop
+      ignoreNextSwipe: false, // used for drag-and-drop
     };
   },
 
@@ -202,7 +218,20 @@ export default defineComponent({
           } while (--days > 0);
         }
       });
+      // console.log("map example ", map);
       return map;
+    },
+
+    disabledAfter() {
+      let ts = parseTimestamp("2023-10-04");
+      ts = addToDate(ts, { day: 19 });
+      return ts.date;
+    },
+
+    disabledBefore() {
+      let ts = parseTimestamp("2023-10-04");
+      ts = addToDate(ts, { day: -1 });
+      return ts.date;
     },
   },
 
@@ -229,13 +258,14 @@ export default defineComponent({
         s.top = timeStartPos(event.time) + "px";
         s.height = timeDurationHeight(event.duration) + "px";
       }
-      s["align-items"] = "flex-start";
+      // s["align-items"] = "flex-start";
+      // console.log(s);
       return s;
     },
 
     getEvents(dt) {
-      // get all events for the specified date
       const events = this.eventsMap[dt] || [];
+      // console.log("events vue 2 ", events);
 
       if (events.length === 1) {
         events[0].side = "full";
@@ -265,6 +295,28 @@ export default defineComponent({
 
       return events;
     },
+    calendarNext() {
+      this.$refs.calendar.next();
+    },
+    calendarPrev() {
+      this.$refs.calendar.prev();
+    },
+    handleSwipe({ evt, ...info }) {
+      if (this.dragging === false) {
+        if (info.duration >= 30 && this.ignoreNextSwipe === false) {
+          if (info.direction === "right") {
+            this.calendarPrev();
+          } else if (info.direction === "left") {
+            this.calendarNext();
+          }
+        } else {
+          this.ignoreNextSwipe = false;
+        }
+      }
+      // stopAndPrevent(evt)
+      evt.cancelable !== false && evt.preventDefault();
+      evt.stopPropagation();
+    },
 
     scrollToEvent(event) {
       this.$refs.calendar.scrollToTime(event.time, 350);
@@ -284,7 +336,7 @@ export default defineComponent({
       console.log("onMoved", data);
     },
     onChange(data) {
-      console.log("onChange", data);
+      // console.log("onChange", data);
     },
     onClickDate(data) {
       console.log("onClickDate", data);
