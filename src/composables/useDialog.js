@@ -5,8 +5,9 @@ export default function useDialog() {
 
   const DialogConfirm = (message) => {
     $q.dialog({
+      color: "primary",
       title: message.title,
-      message: [message.details, " - ", message.time, "h"],
+      message: `${message.details} - ${message.time}H`,
     })
       .onOk(() => {
         // console.log('OK')

@@ -1,34 +1,89 @@
-<!-- eslint-disable vue/valid-v-slot -->
-
 <template>
   <div class="subcontent">
-    <!-- <button @click="onNext">NEXT</button> -->
-    <div class="q-ma-sm q-gutter-sm row justify-center">
-      <q-select
-        filled
-        v-model="selected"
-        :options="options"
-        label="Modo de
-      visualização"
-        emit-value
-        map-options
-        style="min-width: 180px"
-        transition-show="scale"
-        transition-hide="scale"
-      />
-    </div>
-
-    <div class="row justify-center">
-      <div style="display: flex; max-width: 800px; width: 100%; height: 400px">
+    <div
+      style="
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        width: 100%;
+      "
+    >
+      <div
+        style="
+          max-width: 800px;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <div class="q-ma-sm q-gutter-sm row justify-center">
+          <q-select
+            filled
+            v-model="selected"
+            :options="options"
+            label="Modo de
+            visualização"
+            emit-value
+            map-options
+            style="min-width: 180px"
+            transition-show="scale"
+            transition-hide="scale"
+          />
+        </div>
+        <div class="title-bar" style="display: flex">
+          <q-btn
+            tabindex="0"
+            class="date-button direction-button direction-button__left"
+            @click="onPrev"
+            icon="arrow_back_ios"
+          >
+            <span class="q-calendar__focus-helper" tabindex="-1" />
+          </q-btn>
+          <div class="dates-holder">
+            <transition :name="transition" appear>
+              <div :key="parsedStart.date" class="internal-dates-holder">
+                <div v-for="day in days" :key="day.date" :style="dayStyle">
+                  <button
+                    tabindex="0"
+                    style="width: 100%"
+                    :class="dayClass(day)"
+                    @click="
+                      selectedDate = day.date;
+                      transition = '';
+                    "
+                  >
+                    <span class="q-calendar__focus-helper" tabindex="-1" />
+                    <div style="width: 100%">
+                      {{ monthFormatter(day, true) }}
+                    </div>
+                    <div style="width: 100%; font-size: 16px; font-weight: 700">
+                      {{ dayFormatter(day, false) }}
+                    </div>
+                    <div style="width: 100%; font-size: 10px">
+                      {{ weekdayFormatter(day, true) }}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </transition>
+          </div>
+          <q-btn
+            tabindex="0"
+            class="date-button direction-button direction-button__right"
+            @click="onNext"
+            icon="arrow_forward_ios"
+          >
+            <span class="q-calendar__focus-helper" tabindex="-1" />
+          </q-btn>
+        </div>
         <q-calendar-day
           ref="calendar"
           v-model="selectedDate"
-          use-navigation
-          no-active-date
-          bordered
           :view="selected"
           :max-days="selected === 'day' ? 1 : 0"
-          :weekdays="[1, 2, 3, 4, 5, 6, 7, 0]"
+          bordered
+          animated
+          locale="pt-BR"
           :hour24-format="hour24"
           :interval-start="16"
           :interval-minutes="30"
@@ -36,12 +91,15 @@
           :interval-height="40"
           :disabled-after="disabledAfter"
           :disabled-before="disabledBefore"
-          short-weekday-label
-          animated
-          locale="pt-BR"
+          style="height: 400px"
+          @change="onChange"
+          @moved="onMoved"
+          @click-date="onClickDate"
+          @click-time="onClickTime"
+          @click-interval="onClickInterval"
+          @click-head-intervals="onClickHeadIntervals"
+          @click-head-day="onClickHeadDay"
           v-touch-swipe.mouse.left.right="handleSwipe"
-          transition-prev="slide-right"
-          transition-next="slide-left"
         >
           <template #head-day-event="{ scope: { timestamp } }">
             <div
@@ -91,7 +149,6 @@
               </template>
             </div>
           </template>
-
           <template
             #day-body="{
               scope: { timestamp, timeStartPos, timeDurationHeight },
@@ -102,13 +159,13 @@
               :key="event.id"
             >
               <div
-                @click="handleDetailsEvents(event)"
                 v-if="event.time !== undefined"
                 class="my-event"
                 :class="badgeClasses(event, 'body')"
                 :style="
                   badgeStyles(event, 'body', timeStartPos, timeDurationHeight)
                 "
+                @click="handleDetailsEvents(event)"
               >
                 <span class="title q-calendar__ellipsis">
                   {{ event.title }}
@@ -123,98 +180,147 @@
     </div>
   </div>
 </template>
-<style src="@quasar/quasar-ui-qcalendar/dist/QCalendarDay.min.css"></style>
+
 <script>
-import useDialog from "src/composables/useDialog";
-import { defineComponent, ref, computed, onMounted } from "vue";
-import "@quasar/quasar-ui-qcalendar/dist/QCalendarTransitions.css";
 import {
   QCalendarDay,
   addToDate,
+  createDayList,
+  createNativeLocaleFormatter,
+  getEndOfWeek,
+  getStartOfWeek,
+  getWeekdaySkips,
   parseTimestamp,
   isBetweenDates,
+  today,
   parsed,
   parseTime,
 } from "@quasar/quasar-ui-qcalendar/src/index.js";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarVariables.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarTransitions.sass";
-import "@quasar/quasar-ui-qcalendar/src/QCalendar.sass";
+import "@quasar/quasar-ui-qcalendar/src/QCalendarDay.sass";
+
+import { defineComponent, ref, reactive, computed } from "vue";
+import useDialog from "src/composables/useDialog";
 
 export default defineComponent({
-  name: "CalendarAll",
+  name: "DayCustomHeader",
   components: {
     QCalendarDay,
   },
   setup() {
     const { DialogConfirm } = useDialog();
+
     const selected = ref("day");
     const options = ref([
       { label: "Dia", value: "day" },
       { label: "Semana", value: "week" },
     ]);
-
-    const view = ref("day");
     const hour24 = true;
+    const selectedDate = ref("2023-10-04"),
+      calendar = ref(null),
+      weekdays = reactive([0, 1, 2, 3, 4, 5, 6]),
+      locale = ref("pt-BR"),
+      monthFormatter = monthFormatterFunc(),
+      dayFormatter = dayFormatterFunc(),
+      weekdayFormatter = weekdayFormatterFunc(),
+      transitionPrev = ref("slide-left"),
+      transitionNext = ref("slide-right"),
+      transition = ref("");
+
     const dragging = false;
     let ignoreNextSwipe = false;
-    const selectedCalendar = ref("agenda"),
-      calendar = ref(null),
-      selectedDate = ref("2023-10-04"), // seleted day
-      events = ref([
-        {
-          id: 1,
-          title: "Abertura – Som Mecânico",
-          details: "SETOR 04 - SPATEN PLATZ",
-          date: "2023-10-04",
-          time: "18:00",
-          duration: 60,
-          bgcolor: "green-10",
-          icon: "fas fa-handshake",
-        },
-        {
-          id: 2,
-          title: "Abertura – Som Mecânico",
-          details: "SETOR 03",
-          date: "2023-10-04",
-          time: "18:00",
-          duration: 60,
-          bgcolor: "green-10",
-          icon: "fas fa-hamburger",
-        },
-        {
-          id: 3,
-          title: "Banda do Caneco",
-          details: "SETOR 01",
-          date: "2023-10-04",
-          time: "19:00",
-          duration: 60,
-          bgcolor: "red-10",
-          icon: "fas fa-chalkboard-teacher",
-        },
-        {
-          id: 4,
-          title: "Abertura – Som mecânico",
-          details: "Meet GF for dinner at Swanky Restaurant",
-          date: "2023-10-07",
-          time: "19:00",
-          duration: 60,
-          bgcolor: "teal-2",
-          icon: "fas fa-utensils",
-        },
-      ]);
 
-    // doc about computed vue 3
-    // https://vuejs.org/guide/essentials/computed.html#basic-example
-    const disabledAfter = computed(() => {
-      let ts = parseTimestamp("2023-10-04");
-      ts = addToDate(ts, { day: 19 });
-      return ts.date;
+    const events = ref([
+      {
+        id: 1,
+        title: "Abertura – Som Mecânico",
+        details: "SETOR 04 - SPATEN PLATZ",
+        date: "2023-10-04",
+        time: "8:00",
+        duration: 60,
+        bgcolor: "green-10",
+        icon: "fas fa-handshake",
+      },
+      {
+        id: 2,
+        title: "Abertura – Som Mecânico",
+        details: "SETOR 03",
+        date: "2023-10-04",
+        time: "18:00",
+        duration: 60,
+        bgcolor: "green-10",
+        icon: "fas fa-hamburger",
+      },
+      {
+        id: 3,
+        title: "Banda do Caneco",
+        details: "SETOR 01",
+        date: "2023-10-04",
+        time: "19:00",
+        duration: 60,
+        bgcolor: "red-10",
+        icon: "fas fa-chalkboard-teacher",
+      },
+      {
+        id: 4,
+        title: "Abertura – Som mecânico",
+        details: "Meet GF for dinner at Swanky Restaurant",
+        date: "2023-10-07",
+        time: "19:00",
+        duration: 60,
+        bgcolor: "teal-2",
+        icon: "fas fa-utensils",
+      },
+    ]);
+
+    const weekdaySkips = computed(() => {
+      return getWeekdaySkips(weekdays);
     });
 
-    const disabledBefore = computed(() => {
-      let ts = parseTimestamp("2023-10-04");
-      ts = addToDate(ts, { day: -1 });
-      return ts.date;
+    const parsedStart = computed(() => {
+      if (selectedDate.value) {
+        return getStartOfWeek(
+          parseTimestamp(selectedDate.value),
+          weekdays,
+          today2.value
+        );
+      }
+      return undefined;
+    });
+
+    const parsedEnd = computed(() => {
+      if (selectedDate.value) {
+        return getEndOfWeek(
+          parseTimestamp(selectedDate.value),
+          weekdays,
+          today2.value
+        );
+      }
+      return undefined;
+    });
+
+    const today2 = computed(() => {
+      return parseTimestamp(today());
+    });
+
+    const days = computed(() => {
+      if (parsedStart.value && parsedEnd.value) {
+        return createDayList(
+          parsedStart.value,
+          parsedEnd.value,
+          today2.value,
+          weekdaySkips.value
+        );
+      }
+      return [];
+    });
+
+    const dayStyle = computed(() => {
+      const width = 100 / weekdays.length + "%";
+      return {
+        width,
+      };
     });
 
     // convert the events into a map of lists keyed by date
@@ -241,6 +347,20 @@ export default defineComponent({
       return map;
     });
 
+    // doc about computed vue 3
+    // https://vuejs.org/guide/essentials/computed.html#basic-example
+    const disabledAfter = computed(() => {
+      let ts = parseTimestamp("2023-10-04");
+      ts = addToDate(ts, { day: 19 });
+      return ts.date;
+    });
+
+    const disabledBefore = computed(() => {
+      let ts = parseTimestamp("2023-10-04");
+      ts = addToDate(ts, { day: -1 });
+      return ts.date;
+    });
+
     const badgeClasses = (event, type) => {
       const isHeader = type.value === "header";
       return {
@@ -264,6 +384,7 @@ export default defineComponent({
         s.height = timeDurationHeight(event.duration) + "px";
       }
       s["align-items"] = "flex-start";
+      console.log(s);
       return s;
     };
 
@@ -296,23 +417,83 @@ export default defineComponent({
           events[1].side = "full";
         }
       }
-      console.log(events);
+      // console.log(events);
       return events;
     };
 
     const scrollToEvent = (event) => {
       calendar.value.scrollToTime(event.time, 350);
     };
-
     const handleDetailsEvents = (event) => {
       DialogConfirm(event);
     };
 
     function onPrev() {
-      calendar.value.prev();
+      const ts = addToDate(parsedStart.value, { day: -7 });
+      selectedDate.value = ts.date;
+      transition.value = "q-calendar--" + transitionPrev.value;
     }
+
     function onNext() {
-      calendar.value.next();
+      const ts = addToDate(parsedStart.value, { day: 7 });
+      selectedDate.value = ts.date;
+      transition.value = "q-calendar--" + transitionNext.value;
+    }
+
+    function dayClass(day) {
+      return {
+        "date-button": true,
+        "selected-date-button": selectedDate.value === day.date,
+      };
+    }
+
+    function monthFormatterFunc() {
+      const longOptions = { timeZone: "UTC", month: "long" };
+      const shortOptions = { timeZone: "UTC", month: "short" };
+
+      return createNativeLocaleFormatter(locale.value, (_tms, short) =>
+        short ? shortOptions : longOptions
+      );
+    }
+
+    function weekdayFormatterFunc() {
+      const longOptions = { timeZone: "UTC", weekday: "long" };
+      const shortOptions = { timeZone: "UTC", weekday: "short" };
+
+      return createNativeLocaleFormatter(locale.value, (_tms, short) =>
+        short ? shortOptions : longOptions
+      );
+    }
+
+    function dayFormatterFunc() {
+      const longOptions = { timeZone: "UTC", day: "2-digit" };
+      const shortOptions = { timeZone: "UTC", day: "numeric" };
+
+      return createNativeLocaleFormatter(locale.value, (_tms, short) =>
+        short ? shortOptions : longOptions
+      );
+    }
+
+    function onMoved(data) {
+      // console.log("onMoved", data);
+    }
+    function onChange(data) {
+      // console.log("onChange", data);
+    }
+    function onClickDate(data) {
+      // console.log("onClickDate", data);
+    }
+    function onClickTime(data) {
+      // console.log("onClickTime", data);
+    }
+    function onClickInterval(data) {
+      // console.log("onClickInterval", data);
+    }
+    function onClickHeadIntervals(data) {
+      // console.log("onClickHeadIntervals", data);
+    }
+    function onClickHeadDay(data) {
+      // console.log("onClickHeadDay", data);
     }
 
     // Doc about swipe
@@ -334,42 +515,116 @@ export default defineComponent({
       evt.stopPropagation();
     };
 
-    function onToday() {
-      calendar.value.moveToToday();
-    }
-
-    // onBeforeMount(() => {
-    //   // adjust all the dates for the current month so examples don't expire
-    // });
-
     return {
       selected,
       options,
-      selectedDate,
-      selectedCalendar,
-      view,
-      calendar,
       hour24,
-      events,
+      selectedDate,
+      calendar,
+      locale,
+      monthFormatter,
+      dayFormatter,
+      weekdayFormatter,
+      transitionPrev,
+      transitionNext,
+      transition,
       dragging,
       ignoreNextSwipe,
+      parsedStart,
+      days,
+      events,
+      dayStyle,
+      eventsMap,
       disabledAfter,
       disabledBefore,
-      eventsMap,
-      handleSwipe,
+      scrollToEvent,
       handleDetailsEvents,
-      onToday,
-      onPrev,
-      onNext,
       badgeClasses,
       badgeStyles,
       getEvents,
-      scrollToEvent,
+      onPrev,
+      onNext,
+      dayClass,
+      onMoved,
+      onChange,
+      onClickDate,
+      onClickTime,
+      onClickInterval,
+      onClickHeadIntervals,
+      onClickHeadDay,
+      handleSwipe,
     };
   },
 });
 </script>
+
 <style>
+.title-bar {
+  position: relative;
+  width: 100%;
+  height: 70px;
+  background: #005a00;
+  /* display: flex; */
+  /* flex-direction: row; */
+  /* flex: 1 0 100%; */
+  /* justify-content: space-between; */
+  /* align-items: center; */
+  overflow: hidden;
+  border-radius: 3px;
+  user-select: none;
+}
+
+.dates-holder {
+  position: relative;
+  width: 100%;
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  color: #fff;
+  overflow: hidden;
+  user-select: none;
+}
+
+.internal-dates-holder {
+  position: relative;
+  width: 100%;
+  display: inline-flex;
+  flex: 1 1 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  overflow: hidden;
+  user-select: none;
+}
+
+.direction-button {
+  background: red;
+  color: white;
+  width: 40px;
+  max-width: 50px !important;
+}
+
+/* .direction-button__left{
+  &:before
+    content: '<';
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    font-weight: 900;
+    font-size: 3em;
+} */
+
+/* .direction-button__right{
+  &:before
+    content: '>';
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+    font-weight: 900;
+    font-size: 3em;
+} */
+
 .my-event {
   position: absolute;
   font-size: 12px;
@@ -430,5 +685,34 @@ export default defineComponent({
 }
 .rounded-border {
   border-radius: 2px;
+}
+.date-button {
+  color: #ffd800;
+  background: #005a00;
+  z-index: 2;
+  height: 100%;
+  outline: 0;
+  cursor: pointer;
+  border-radius: 3px;
+  display: inline-flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
+  border: 0;
+  vertical-align: middle;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.715em;
+  text-decoration: none;
+  font-weight: 500;
+  text-transform: uppercase;
+  text-align: center;
+  user-select: none;
+}
+
+.selected-date-button {
+  color: #ffd800;
+  background: #b71c1c !important;
 }
 </style>
