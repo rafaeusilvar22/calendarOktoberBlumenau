@@ -152,7 +152,7 @@ export default defineComponent({
 
     const options = ref([
       { label: "Dia", value: "day" },
-      { label: "Mês", value: "week" },
+      { label: "Semana", value: "week" },
     ]);
     const view = ref("day");
     const hour24 = true;
