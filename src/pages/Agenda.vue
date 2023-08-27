@@ -1,31 +1,48 @@
+<!-- eslint-disable vue/valid-v-slot -->
+
 <template>
   <div class="subcontent">
+    <!-- <button @click="onNext">NEXT</button> -->
+    <div class="q-ma-sm q-gutter-sm row justify-center">
+      <q-select
+        filled
+        v-model="selected"
+        :options="options"
+        label="Modo de
+      visualização"
+        emit-value
+        map-options
+        style="min-width: 180px"
+        transition-show="scale"
+        transition-hide="scale"
+      />
+    </div>
+
     <div class="row justify-center">
       <div style="display: flex; max-width: 800px; width: 100%; height: 400px">
         <q-calendar-day
           ref="calendar"
           v-model="selectedDate"
-          view="week"
-          animated
-          bordered
-          :weekdays="[1, 2, 3, 4, 5, 6, 7, 0]"
-          transition-next="slide-left"
-          transition-prev="slide-right"
-          locale="pt-BR"
+          use-navigation
           no-active-date
-          :interval-start="7"
-          :interval-count="18"
-          :interval-height="28"
+          bordered
+          :view="selected"
+          :max-days="selected === 'day' ? 1 : 0"
+          :weekdays="[1, 2, 3, 4, 5, 6, 7, 0]"
+          :hour24-format="hour24"
+          :interval-start="16"
+          :interval-minutes="30"
+          :interval-count="50"
+          :interval-height="40"
           :disabled-after="disabledAfter"
           :disabled-before="disabledBefore"
-          v-touch-swipe.mouse.left.right="handleSwipe"
-          @change="onChange"
-          @moved="onMoved"
-          @click-date="onClickDate"
+          short-weekday-label
+          animated
+          locale="pt-BR"
           @click-time="onClickTime"
-          @click-interval="onClickInterval"
-          @click-head-intervals="onClickHeadIntervals"
-          @click-head-day="onClickHeadDay"
+          v-touch-swipe.mouse.left.right="handleSwipe"
+          transition-prev="slide-right"
+          transition-next="slide-left"
         >
           <template #head-day-event="{ scope: { timestamp } }">
             <div
@@ -36,7 +53,10 @@
                 padding: 2px;
               "
             >
-              <template v-for="event in [timestamp.date]" :key="event.id">
+              <template
+                v-for="event in eventsMap[timestamp.date]"
+                :key="event.id"
+              >
                 <q-badge
                   v-if="!event.time"
                   :class="badgeClasses(event, 'header')"
@@ -49,10 +69,10 @@
                     margin: 1px;
                   "
                 >
-                  <span class="title q-calendar__ellipsis">
+                  <div class="title q-calendar__ellipsis">
                     {{ event.title }}
                     <q-tooltip>{{ event.details }}</q-tooltip>
-                  </span>
+                  </div>
                 </q-badge>
                 <q-badge
                   v-else
@@ -64,6 +84,7 @@
                     max-width: 10px;
                     height: 10px;
                     max-height: 10px;
+                    cursor: pointer;
                   "
                   @click="scrollToEvent(event)"
                 >
@@ -93,7 +114,8 @@
                 "
               >
                 <span class="title q-calendar__ellipsis">
-                  {{ event.title }}
+                  {{ event.time }}
+
                   <q-tooltip>{{ event.details }}</q-tooltip>
                 </span>
               </div>
@@ -104,42 +126,42 @@
     </div>
   </div>
 </template>
-
+<style src="@quasar/quasar-ui-qcalendar/dist/QCalendarDay.min.css"></style>
 <script>
+import { defineComponent, ref, computed, onMounted } from "vue";
+import "@quasar/quasar-ui-qcalendar/dist/QCalendarTransitions.css";
 import {
   QCalendarDay,
   addToDate,
   parseTimestamp,
   isBetweenDates,
-  today,
   parsed,
-  parseDate,
   parseTime,
-} from "@quasar/quasar-ui-qcalendar/src/QCalendarDay.js";
+} from "@quasar/quasar-ui-qcalendar/src/index.js";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarVariables.sass";
 import "@quasar/quasar-ui-qcalendar/src/QCalendarTransitions.sass";
-import "@quasar/quasar-ui-qcalendar/src/QCalendarDay.sass";
-
-import { defineComponent } from "vue";
-
-// The function below is used to set up our demo data
-const CURRENT_DAY = new Date();
-function getCurrentDay(day) {
-  const newDay = new Date(CURRENT_DAY);
-  newDay.setDate(day);
-  const tm = parseDate(newDay);
-  return tm.date;
-}
+import "@quasar/quasar-ui-qcalendar/src/QCalendar.sass";
 
 export default defineComponent({
-  name: "WeekSlotDayBody",
+  name: "CalendarAll",
   components: {
     QCalendarDay,
   },
-  data() {
-    return {
-      selectedDate: "2023-10-04",
-      events: [
+  setup() {
+    const selected = ref("day");
+
+    const options = ref([
+      { label: "Dia", value: "day" },
+      { label: "Mês", value: "week" },
+    ]);
+    const view = ref("day");
+    const hour24 = true;
+    const dragging = false;
+    let ignoreNextSwipe = false;
+    const selectedCalendar = ref("agenda"),
+      calendar = ref(null),
+      selectedDate = ref("2023-10-04"), // seleted day
+      events = ref([
         {
           id: 1,
           title: "Abertura – Som mecânico",
@@ -151,20 +173,10 @@ export default defineComponent({
           icon: "fas fa-handshake",
         },
         {
-          id: 1,
-          title: "Abertura – Som mecânico",
-          details: "Time to pitch my idea to the company",
-          date: "2023-10-04",
-          time: "10:00",
-          duration: 60,
-          bgcolor: "red",
-          icon: "fas fa-handshake",
-        },
-        {
           id: 2,
           title: "Banda Os Fritz",
           details: "Company is paying!",
-          date: "2023-10-05",
+          date: "2023-10-04",
           time: "12:00",
           duration: 60,
           bgcolor: "teal",
@@ -173,8 +185,8 @@ export default defineComponent({
         {
           id: 3,
           title: "Abertura – Som mecânico",
-          details: "Teaching Javascript 081",
-          date: "2023-10-06",
+          details: "Teaching Javascript 101",
+          date: "2023-10-05",
           time: "13:00",
           duration: 60,
           bgcolor: "blue",
@@ -190,18 +202,27 @@ export default defineComponent({
           bgcolor: "teal-2",
           icon: "fas fa-utensils",
         },
-      ],
-      dragging: false, // used for drag-and-drop
-      ignoreNextSwipe: false, // used for drag-and-drop
-    };
-  },
+      ]);
 
-  computed: {
+    // doc about computed vue 3
+    // https://vuejs.org/guide/essentials/computed.html#basic-example
+    const disabledAfter = computed(() => {
+      let ts = parseTimestamp("2023-10-04");
+      ts = addToDate(ts, { day: 19 });
+      return ts.date;
+    });
+
+    const disabledBefore = computed(() => {
+      let ts = parseTimestamp("2023-10-04");
+      ts = addToDate(ts, { day: -1 });
+      return ts.date;
+    });
+
     // convert the events into a map of lists keyed by date
-    eventsMap() {
+    const eventsMap = computed(() => {
       const map = {};
       // this.events.forEach(event => (map[ event.date ] = map[ event.date ] || []).push(event))
-      this.events.forEach((event) => {
+      events.value.map((event) => {
         if (!map[event.date]) {
           map[event.date] = [];
         }
@@ -218,26 +239,11 @@ export default defineComponent({
           } while (--days > 0);
         }
       });
-      // console.log("map example ", map);
       return map;
-    },
+    });
 
-    disabledAfter() {
-      let ts = parseTimestamp("2023-10-04");
-      ts = addToDate(ts, { day: 19 });
-      return ts.date;
-    },
-
-    disabledBefore() {
-      let ts = parseTimestamp("2023-10-04");
-      ts = addToDate(ts, { day: -1 });
-      return ts.date;
-    },
-  },
-
-  methods: {
-    badgeClasses(event, type) {
-      const isHeader = type === "header";
+    const badgeClasses = (event, type) => {
+      const isHeader = type.value === "header";
       return {
         [`text-white bg-${event.bgcolor}`]: true,
         "full-width": !isHeader && (!event.side || event.side === "full"),
@@ -245,27 +251,25 @@ export default defineComponent({
         "right-side": !isHeader && event.side === "right",
         "rounded-border": true,
       };
-    },
+    };
 
-    badgeStyles(
+    const badgeStyles = (
       event,
       type,
       timeStartPos = undefined,
       timeDurationHeight = undefined
-    ) {
+    ) => {
       const s = {};
       if (timeStartPos && timeDurationHeight) {
         s.top = timeStartPos(event.time) + "px";
         s.height = timeDurationHeight(event.duration) + "px";
       }
-      // s["align-items"] = "flex-start";
-      // console.log(s);
+      s["align-items"] = "flex-start";
       return s;
-    },
+    };
 
-    getEvents(dt) {
-      const events = this.eventsMap[dt] || [];
-      // console.log("events vue 2 ", events);
+    const getEvents = (dt) => {
+      const events = eventsMap.value[dt] || [];
 
       if (events.length === 1) {
         events[0].side = "full";
@@ -276,6 +280,7 @@ export default defineComponent({
         const startTime = addToDate(parsed(events[0].date), {
           minute: parseTime(events[0].time),
         });
+
         const endTime = addToDate(startTime, { minute: events[0].duration });
         const startTime2 = addToDate(parsed(events[1].date), {
           minute: parseTime(events[1].time),
@@ -292,124 +297,138 @@ export default defineComponent({
           events[1].side = "full";
         }
       }
-
       return events;
-    },
-    calendarNext() {
-      this.$refs.calendar.next();
-    },
-    calendarPrev() {
-      this.$refs.calendar.prev();
-    },
-    handleSwipe({ evt, ...info }) {
-      if (this.dragging === false) {
-        if (info.duration >= 30 && this.ignoreNextSwipe === false) {
+    };
+
+    const scrollToEvent = (event) => {
+      calendar.value.scrollToTime(event.time, 350);
+    };
+
+    const onClickTime = () => {
+      console.log("onClickTime");
+    };
+
+    function onPrev() {
+      calendar.value.prev();
+    }
+    function onNext() {
+      calendar.value.next();
+    }
+
+    // Doc about swipe
+    // https://quasar.dev/vue-directives/touch-swipe/
+    const handleSwipe = ({ evt, ...info }) => {
+      if (dragging === false) {
+        if (info.duration >= 30 && ignoreNextSwipe === false) {
           if (info.direction === "right") {
-            this.calendarPrev();
+            onPrev();
           } else if (info.direction === "left") {
-            this.calendarNext();
+            onNext();
           }
         } else {
-          this.ignoreNextSwipe = false;
+          ignoreNextSwipe = false;
         }
       }
       // stopAndPrevent(evt)
       evt.cancelable !== false && evt.preventDefault();
       evt.stopPropagation();
-    },
+    };
 
-    scrollToEvent(event) {
-      this.$refs.calendar.scrollToTime(event.time, 350);
-    },
+    function onToday() {
+      calendar.value.moveToToday();
+    }
 
-    onToday() {
-      this.$refs.calendar.moveToToday();
-    },
-    onPrev() {
-      this.$refs.calendar.prev();
-    },
-    onNext() {
-      this.$refs.calendar.next();
-    },
+    // onBeforeMount(() => {
+    //   // adjust all the dates for the current month so examples don't expire
+    // });
 
-    onMoved(data) {
-      console.log("onMoved", data);
-    },
-    onChange(data) {
-      // console.log("onChange", data);
-    },
-    onClickDate(data) {
-      console.log("onClickDate", data);
-    },
-    onClickTime(data) {
-      console.log("onClickTime", data);
-    },
-    onClickInterval(data) {
-      console.log("onClickInterval", data);
-    },
-    onClickHeadIntervals(data) {
-      console.log("onClickHeadIntervals", data);
-    },
-    onClickHeadDay(data) {
-      console.log("onClickHeadDay", data);
-    },
+    return {
+      selected,
+      options,
+      selectedDate,
+      selectedCalendar,
+      view,
+      calendar,
+      hour24,
+      events,
+      dragging,
+      ignoreNextSwipe,
+      disabledAfter,
+      disabledBefore,
+      eventsMap,
+      handleSwipe,
+      onClickTime,
+      onToday,
+      onPrev,
+      onNext,
+      badgeClasses,
+      badgeStyles,
+      getEvents,
+      scrollToEvent,
+    };
   },
 });
 </script>
+<style scoped>
+.my-event {
+  position: absolute;
+  font-size: 12px;
+  justify-content: center;
+  margin: 0 1px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  cursor: pointer;
+}
+.title {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+.text-white {
+  color: white;
+}
 
-<style lang="sass" scoped>
-.my-event
-  position: absolute
-  font-size: 12px
-  justify-content: center
-  margin: 0 1px
-  text-overflow: ellipsis
-  overflow: hidden
-  cursor: pointer
+.bg-blue {
+  background: blue;
+}
 
-.title
-  position: relative
-  display: flex
-  justify-content: center
-  align-items: center
-  height: 100%
+.bg-green {
+  background: green;
+}
 
-.text-white
-  color: white
+.bg-orange {
+  background: orange;
+}
 
-.bg-blue
-  background: blue
+.bg-red {
+  background: red;
+}
+.bg-teal {
+  background: teal;
+}
 
-.bg-green
-  background: green
+.bg-grey {
+  background: grey;
+}
 
-.bg-orange
-  background: orange
-
-.bg-red
-  background: red
-
-.bg-teal
-  background: teal
-
-.bg-grey
-  background: grey
-
-.bg-purple
-  background: purple
-
-.full-width
-  left: 0
-  width: calc(100% - 2px)
-
-.left-side
-  left: 0
-  width: calc(50% - 3px)
-
-.right-side
-  left: 50%
-  width: calc(50% - 3px)
-
-.rounded-border
-  border-radius: 2px
+.bg-purple {
+  background: purple;
+}
+.full-width {
+  left: 0;
+  width: calc(100% - 2px);
+}
+.left-side {
+  left: 0;
+  width: calc(50% - 3px);
+}
+.right-side {
+  left: 50%;
+  width: calc(50% - 3px);
+}
+.rounded-border {
+  border-radius: 2px;
+}
 </style>

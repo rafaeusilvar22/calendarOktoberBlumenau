@@ -1,18 +1,18 @@
 <template>
   <q-page padding>
     <div>
-      <IndexPage />
+      <Agenda />
     </div>
   </q-page>
 </template>
 <script>
-import IndexPage from "./IndexPage.vue";
+import Agenda from "./Agenda.vue";
 import { defineComponent } from "vue";
 
 export default defineComponent({
   name: "PageHome",
   components: {
-    IndexPage,
+    Agenda,
   },
 });
 </script>
