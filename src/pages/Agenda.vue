@@ -113,7 +113,7 @@
                 <span class="title q-calendar__ellipsis">
                   {{ event.title }}
 
-                  <q-tooltip>{{ event.details }}</q-tooltip>
+                  <!-- <q-tooltip>{{ event.details }}</q-tooltip> -->
                 </span>
               </div>
             </template>
