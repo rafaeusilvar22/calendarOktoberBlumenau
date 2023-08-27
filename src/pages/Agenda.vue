@@ -178,7 +178,7 @@ export default defineComponent({
           date: "2023-10-04",
           time: "18:00",
           duration: 60,
-          bgcolor: "teal",
+          bgcolor: "green-10",
           icon: "fas fa-hamburger",
         },
         {
@@ -188,7 +188,7 @@ export default defineComponent({
           date: "2023-10-04",
           time: "19:00",
           duration: 60,
-          bgcolor: "blue",
+          bgcolor: "red-10",
           icon: "fas fa-chalkboard-teacher",
         },
         {
@@ -369,7 +369,7 @@ export default defineComponent({
   },
 });
 </script>
-<style scoped>
+<style>
 .my-event {
   position: absolute;
   font-size: 12px;
