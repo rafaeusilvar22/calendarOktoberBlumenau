@@ -39,7 +39,6 @@
           short-weekday-label
           animated
           locale="pt-BR"
-          @click-time="onClickTime"
           v-touch-swipe.mouse.left.right="handleSwipe"
           transition-prev="slide-right"
           transition-next="slide-left"
@@ -88,9 +87,6 @@
                   "
                   @click="scrollToEvent(event)"
                 >
-                  <q-tooltip>{{
-                    event.time + " - " + event.details
-                  }}</q-tooltip>
                 </q-badge>
               </template>
             </div>
@@ -106,6 +102,7 @@
               :key="event.id"
             >
               <div
+                @click="handleDetailsEvents(event)"
                 v-if="event.time !== undefined"
                 class="my-event"
                 :class="badgeClasses(event, 'body')"
@@ -114,7 +111,7 @@
                 "
               >
                 <span class="title q-calendar__ellipsis">
-                  {{ event.time }}
+                  {{ event.title }}
 
                   <q-tooltip>{{ event.details }}</q-tooltip>
                 </span>
@@ -128,6 +125,7 @@
 </template>
 <style src="@quasar/quasar-ui-qcalendar/dist/QCalendarDay.min.css"></style>
 <script>
+import useDialog from "src/composables/useDialog";
 import { defineComponent, ref, computed, onMounted } from "vue";
 import "@quasar/quasar-ui-qcalendar/dist/QCalendarTransitions.css";
 import {
@@ -148,12 +146,13 @@ export default defineComponent({
     QCalendarDay,
   },
   setup() {
+    const { DialogConfirm } = useDialog();
     const selected = ref("day");
-
     const options = ref([
       { label: "Dia", value: "day" },
       { label: "Semana", value: "week" },
     ]);
+
     const view = ref("day");
     const hour24 = true;
     const dragging = false;
@@ -164,30 +163,30 @@ export default defineComponent({
       events = ref([
         {
           id: 1,
-          title: "Abertura – Som mecânico",
-          details: "Time to pitch my idea to the company",
+          title: "Abertura – Som Mecânico",
+          details: "SETOR 04 - SPATEN PLATZ",
           date: "2023-10-04",
-          time: "09:00",
+          time: "18:00",
           duration: 60,
           bgcolor: "red",
           icon: "fas fa-handshake",
         },
         {
           id: 2,
-          title: "Banda Os Fritz",
-          details: "Company is paying!",
+          title: "Abertura – Som Mecânico",
+          details: "SETOR 03",
           date: "2023-10-04",
-          time: "12:00",
+          time: "18:00",
           duration: 60,
           bgcolor: "teal",
           icon: "fas fa-hamburger",
         },
         {
           id: 3,
-          title: "Abertura – Som mecânico",
-          details: "Teaching Javascript 101",
-          date: "2023-10-05",
-          time: "13:00",
+          title: "Banda do Caneco",
+          details: "SETOR 01",
+          date: "2023-10-04",
+          time: "19:00",
           duration: 60,
           bgcolor: "blue",
           icon: "fas fa-chalkboard-teacher",
@@ -304,8 +303,11 @@ export default defineComponent({
       calendar.value.scrollToTime(event.time, 350);
     };
 
-    const onClickTime = () => {
-      console.log("onClickTime");
+    const handleDetailsEvents = (event) => {
+      DialogConfirm(event);
+      console.log(event.time);
+      console.log(event);
+      console.log("handleDetailsEvents");
     };
 
     function onPrev() {
@@ -357,7 +359,7 @@ export default defineComponent({
       disabledBefore,
       eventsMap,
       handleSwipe,
-      onClickTime,
+      handleDetailsEvents,
       onToday,
       onPrev,
       onNext,
