@@ -168,7 +168,7 @@ export default defineComponent({
           date: "2023-10-04",
           time: "18:00",
           duration: 60,
-          bgcolor: "red",
+          bgcolor: "green-10",
           icon: "fas fa-handshake",
         },
         {
@@ -244,7 +244,7 @@ export default defineComponent({
     const badgeClasses = (event, type) => {
       const isHeader = type.value === "header";
       return {
-        [`text-white bg-${event.bgcolor}`]: true,
+        [`text-amber-14 bg-${event.bgcolor}`]: true,
         "full-width": !isHeader && (!event.side || event.side === "full"),
         "left-side": !isHeader && event.side === "left",
         "right-side": !isHeader && event.side === "right",
@@ -272,7 +272,7 @@ export default defineComponent({
 
       if (events.length === 1) {
         events[0].side = "full";
-      } else if (events.length === 2) {
+      } else if (events.length >= 2) {
         // this example does no more than 2 events per day
         // check if the two events overlap and if so, select
         // left or right side alignment to prevent overlap
@@ -296,6 +296,7 @@ export default defineComponent({
           events[1].side = "full";
         }
       }
+      console.log(events);
       return events;
     };
 
@@ -305,9 +306,6 @@ export default defineComponent({
 
     const handleDetailsEvents = (event) => {
       DialogConfirm(event);
-      console.log(event.time);
-      console.log(event);
-      console.log("handleDetailsEvents");
     };
 
     function onPrev() {
@@ -397,7 +395,7 @@ export default defineComponent({
 }
 
 .bg-green {
-  background: green;
+  background: #005a00;
 }
 
 .bg-orange {
