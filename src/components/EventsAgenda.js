@@ -1,0 +1,66 @@
+import { ref } from "vue";
+
+const events = ref([
+  {
+    id: 1,
+    title: "Abertura – Som Mecânico",
+    details: "SPATEN PLATZ SETOR 04 - SETOR 03 - SETOR 02 - SETOR 01",
+    date: "2023-10-04",
+    time: "18:00",
+    duration: 60,
+    bgcolor: "green-10",
+    icon: "fas fa-handshake",
+  },
+  {
+    id: 2,
+    title: "Banda do Caneco",
+    details: "SETOR 01",
+    date: "2023-10-04",
+    time: "19:01",
+    duration: 60,
+    bgcolor: "red-10",
+    icon: "fas fa-chalkboard-teacher",
+  },
+  {
+    id: 3,
+    title: "Abertura – Som mecânico",
+    details: "Meet GF for dinner at Swanky Restaurant",
+    date: "2023-10-07",
+    time: "19:00",
+    duration: 60,
+    bgcolor: "teal-2",
+    icon: "fas fa-utensils",
+  },
+  {
+    id: 4,
+    title: "Os Montanari",
+    details: "SETOR 01",
+    date: "2023-10-04",
+    time: "21:30",
+    duration: 30,
+    bgcolor: "green-10",
+    icon: "fas fa-utensils",
+  },
+  {
+    id: 5,
+    title: "Lino & Orquestra",
+    details: "SETOR 03",
+    date: "2023-10-04",
+    time: "21:45",
+    duration: 60,
+    bgcolor: "red",
+    icon: "fas fa-utensils",
+  },
+  {
+    id: 6,
+    title: "Banda Champagne",
+    details: "SETOR 02",
+    date: "2023-10-04",
+    time: "22:00",
+    duration: 60,
+    bgcolor: "blue",
+    icon: "fas fa-utensils",
+  },
+]);
+
+export { events };

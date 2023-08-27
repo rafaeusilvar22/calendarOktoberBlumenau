@@ -6,7 +6,7 @@
   </q-page>
 </template>
 <script>
-import Agenda from "./Agenda.vue";
+import Agenda from "src/components/Agenda.vue";
 import { defineComponent } from "vue";
 
 export default defineComponent({
