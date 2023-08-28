@@ -16,19 +16,30 @@
           flex-direction: column;
         "
       >
-        <div class="q-ma-sm q-gutter-sm row justify-center">
-          <q-select
-            filled
-            v-model="selected"
-            :options="options"
-            label="Modo de
-            visualização"
-            emit-value
-            map-options
-            style="min-width: 180px"
-            transition-show="scale"
-            transition-hide="scale"
-          />
+        <div class="q-ma-sm q-gutter-sm row justify-end">
+          <q-btn-dropdown flat color="primary" icon="settings">
+            <!-- <q-list>
+              <q-item clickable v-close-popup>
+                <q-item-section>
+                  <q-item-label>Logout</q-item-label>
+                </q-item-section>
+              </q-item> -->
+            <!-- </q-list> -->
+            <div padding>
+              <q-select
+                filled
+                v-model="selected"
+                :options="options"
+                label="Modo de
+              visualização"
+                emit-value
+                map-options
+                style="min-width: 180px"
+                transition-show="scale"
+                transition-hide="scale"
+              />
+            </div>
+          </q-btn-dropdown>
         </div>
         <div class="title-bar" style="display: flex">
           <q-btn
