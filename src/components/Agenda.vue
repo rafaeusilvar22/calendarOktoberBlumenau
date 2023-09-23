@@ -63,6 +63,7 @@
                       transition = '';
                     "
                   >
+
                     <span class="q-calendar__focus-helper" tabindex="-1" />
                     <div style="width: 100%">
                       {{ monthFormatter(day, true) }}
